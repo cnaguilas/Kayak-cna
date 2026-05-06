@@ -690,10 +690,194 @@
     header { padding: 16px 20px 12px; }
     .logo { font-size: 1.3rem; }
   }
+
+  /* TABS */
+  .tab-bar {
+    display: flex;
+    background: var(--ocean);
+    padding: 0 12px;
+    gap: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: rgba(255,255,255,0.5);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 10px 4px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: color 0.15s, border-color 0.15s;
+    text-transform: uppercase;
+  }
+  .tab-btn.active {
+    color: var(--white);
+    border-bottom-color: var(--sky);
+  }
+
+  /* CONTRATO TAB */
+  #tab-contrato { display: none; }
+  #tab-contrato.active { display: block; }
+  #tab-calendario { display: block; }
+  #tab-calendario.hidden { display: none; }
+
+  .contrato-card {
+    background: var(--white);
+    border-radius: 24px 24px 0 0;
+    margin: 0 12px;
+    min-height: calc(100vh - 130px);
+    padding: 24px 20px 60px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+  }
+  .contrato-card h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: var(--ocean);
+    margin-bottom: 4px;
+  }
+  .contrato-card .subtitle {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  .c-section {
+    margin-bottom: 16px;
+  }
+  .c-section label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .c-section input, .c-section select {
+    width: 100%;
+    border: 1.5px solid var(--mist);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .c-section input:focus, .c-section select:focus {
+    border-color: var(--wave);
+  }
+  .c-row { display: flex; gap: 10px; }
+  .c-row .c-section { flex: 1; }
+
+  /* FIRMA */
+  .firma-wrap {
+    border: 1.5px solid var(--mist);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fafcfd;
+    position: relative;
+  }
+  #firma-canvas {
+    display: block;
+    width: 100%;
+    height: 160px;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  .firma-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ccc;
+    font-size: 0.8rem;
+    pointer-events: none;
+    font-style: italic;
+  }
+  .btn-clear-firma {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--mist);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    color: #888;
+    cursor: pointer;
+  }
+
+  /* CONDICIONES */
+  .condiciones {
+    background: var(--foam);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.72rem;
+    color: #555;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+  }
+  .condiciones p { margin-bottom: 6px; }
+  .condiciones strong { color: var(--ocean); }
+
+  .check-acepto {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 0.82rem;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .check-acepto input { margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+
+  .btn-pdf {
+    width: 100%;
+    background: var(--ocean);
+    color: var(--white);
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 10px;
+  }
+  .btn-pdf:hover { background: var(--wave); }
+  .btn-pdf:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-compartir {
+    width: 100%;
+    background: #25D366;
+    color: var(--white);
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-compartir:hover { background: #1ebe5b; }
+  .btn-compartir:disabled { opacity: 0.4; cursor: not-allowed; }
+
 </style>
 </head>
 <body>
 
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="calendario">📅 Calendario</button>
+  <button class="tab-btn" data-tab="contrato">📋 Contrato</button>
+</div>
 <header>
   <div class="logo">
     🛶 Kayak
@@ -703,6 +887,7 @@
   <div class="kayak-count"><strong>10</strong> kayaks</div>
 </header>
 
+<div id="tab-calendario">
 <div class="card">
   <nav class="cal-nav">
     <button class="btn-nav" id="btn-prev">‹</button>
@@ -729,6 +914,109 @@
   </div>
   <div id="cal-grid"></div>
 </div>
+
+</div>
+
+
+<div id="tab-contrato">
+  <div class="contrato-card">
+    <h2>Solicitud de Reserva de Kayak</h2>
+    <p class="subtitle">Rellena los datos del cliente y firma al final</p>
+
+    <div class="c-row">
+      <div class="c-section">
+        <label>Nº de personas</label>
+        <input type="number" id="c-personas" min="1" placeholder="1">
+      </div>
+      <div class="c-section">
+        <label>Nº de kayaks</label>
+        <input type="number" id="c-kayaks" min="1" max="10" placeholder="1">
+      </div>
+    </div>
+
+    <div class="c-row">
+      <div class="c-section">
+        <label>Día de reserva</label>
+        <input type="date" id="c-fecha">
+      </div>
+      <div class="c-section">
+        <label>Hora de regreso</label>
+        <input type="time" id="c-hora">
+      </div>
+    </div>
+
+    <div class="c-section">
+      <label>Responsable (marinero)</label>
+      <select id="c-responsable">
+        <option value="">Seleccionar...</option>
+        <option>Tomás</option>
+        <option>José Luis</option>
+        <option>Javi</option>
+        <option>Juan</option>
+      </select>
+    </div>
+
+    <div class="c-section">
+      <label>Nombre completo del cliente</label>
+      <input type="text" id="c-nombre" placeholder="Nombre y apellidos">
+    </div>
+
+    <div class="c-row">
+      <div class="c-section">
+        <label>Teléfono</label>
+        <input type="tel" id="c-telf" placeholder="600 000 000">
+      </div>
+      <div class="c-section">
+        <label>NIF / Pasaporte</label>
+        <input type="text" id="c-nif" placeholder="12345678A">
+      </div>
+    </div>
+
+    <div class="c-section">
+      <label>Email</label>
+      <input type="email" id="c-email" placeholder="cliente@email.com">
+    </div>
+
+    <div class="c-section" style="margin-bottom:12px;">
+      <label>Condiciones generales</label>
+      <div class="condiciones">
+        <p><strong>Con el objeto de que alumnos de la Escuela de Vela y aficionados al remo puedan entrenar y/o practicar este deporte, el Club Náutico de Águilas cede este material con las siguientes condiciones:</strong></p>
+        <p>1. El uso del kayak, en ningún caso será deportivo ni competitivo.</p>
+        <p>2. Los kayaks son de 2 plazas.</p>
+        <p>3. Es de obligado cumplimiento el <u>saber nadar</u> y el uso del chaleco mientras se esté haciendo uso del Kayak.</p>
+        <p>4. La forma de pago será en efectivo y por el total del servicio contratado. La entrega antes de la finalización del contrato no ocasionará ningún tipo de abono o reembolso.</p>
+        <p>5. Quien realice la reserva ha de ser <u>mayor de 18 años</u> y se hará responsable del equipo cedido. Deberá aportar <u>Documento Nacional de Identidad o Pasaporte</u>.</p>
+        <p>6. El Usuario, devolverá el kayak y todo el material prestado, en buenas condiciones de funcionamiento y conservación. Será responsable de los daños ocasionados por el mal uso, así como por robo o hurto de éste.</p>
+        <p>7. No se permite el uso del kayak a personas bajo los efectos del alcohol, narcóticos u otros. El Club Náutico de Águilas no tendrá ninguna responsabilidad civil, administrativa o penal por el incumplimiento de lo indicado.</p>
+        <p>8. El Usuario se compromete expresamente a pagar al Club Náutico de Águilas el importe de toda clase de multas, gastos judiciales y extrajudiciales derivados del uso indebido, infracciones y toda clase de normas que sean dirigidas contra el objeto alquilado.</p>
+        <p>9. El importe total del alquiler será de 20 euros/kayak, haciéndose efectivo al momento de la firma del contrato. El precio incluye un kayak, 2 palas y 2 chalecos salvavidas.</p>
+        <p>10. En caso de contratación previa, se realizará una reserva del 50%, que no será devuelta, si no se anula con una antelación de 48 horas, por causas imputables al Usuario.</p>
+        <p>11. Club Náutico de Águilas, se reserva el derecho de suspender la actividad, por el incumplimiento de estas normas o por cualquier otra causa justificada, así como a exigir al Usuario, si ello hubiere lugar, las correspondientes indemnizaciones de perjuicio que fueran imputables al mismo.</p>
+        <p>12. El Usuario releva al Club Náutico de Águilas, de toda responsabilidad por pérdidas o daños que se produzcan en objetos dejados, guardados o transportados en el Kayak, tanto dentro o sobre el objeto de contrato, antes, durante o después de la vigencia del contrato.</p>
+        <p>13. El Usuario declara haber leído y aceptado las anteriores condiciones.</p>
+        <p>14. En caso de divergencia o pleito entre las partes de este contrato, éstas se someterán a la jurisdicción de los Tribunales pertinentes.</p>
+      </div>
+    </div>
+
+    <label class="check-acepto">
+      <input type="checkbox" id="c-acepto">
+      He leído y acepto las condiciones generales del alquiler de kayak.
+    </label>
+
+    <div class="c-section" style="margin-bottom:20px;">
+      <label>Firma del cliente</label>
+      <div class="firma-wrap">
+        <canvas id="firma-canvas"></canvas>
+        <span class="firma-placeholder" id="firma-placeholder">Firme aquí con el dedo</span>
+        <button class="btn-clear-firma" id="btn-clear-firma">Borrar</button>
+      </div>
+    </div>
+
+    <button class="btn-pdf" id="btn-generar-pdf" disabled>⬇️ Descargar PDF</button>
+    <button class="btn-compartir" id="btn-whatsapp" disabled>📤 Compartir por WhatsApp / Email</button>
+  </div>
+</div>
+
 
 <!-- DAY MODAL -->
 <div id="day-modal">
@@ -809,5 +1097,273 @@ window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
 });
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ── TABS ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-calendario').classList.toggle('hidden', tab !== 'calendario');
+    document.getElementById('tab-contrato').classList.toggle('active', tab === 'contrato');
+    if (tab === 'contrato') initFirma();
+  });
+});
+
+// ── FIRMA ────────────────────────────────────────────────────────────────────
+let firmaIniciada = false;
+let firmaContenido = false;
+
+function initFirma() {
+  if (firmaIniciada) return;
+  firmaIniciada = true;
+  const canvas = document.getElementById('firma-canvas');
+  const placeholder = document.getElementById('firma-placeholder');
+  const ctx = canvas.getContext('2d');
+
+  // Resize canvas to actual pixel size
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.strokeStyle = '#0a3d5c';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  resizeCanvas();
+
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return [touch.clientX - rect.left, touch.clientY - rect.top];
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawing = true;
+    [lastX, lastY] = getPos(e);
+    placeholder.style.display = 'none';
+    firmaContenido = true;
+    checkForm();
+  }
+  function draw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const [x, y] = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+  }
+  function stopDraw() { drawing = false; }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDraw);
+  canvas.addEventListener('touchstart', startDraw, {passive: false});
+  canvas.addEventListener('touchmove', draw, {passive: false});
+  canvas.addEventListener('touchend', stopDraw);
+
+  document.getElementById('btn-clear-firma').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    placeholder.style.display = 'block';
+    firmaContenido = false;
+    checkForm();
+  });
+}
+
+// ── VALIDAR FORM ─────────────────────────────────────────────────────────────
+function checkForm() {
+  const ok = document.getElementById('c-nombre').value.trim() &&
+             document.getElementById('c-fecha').value &&
+             document.getElementById('c-kayaks').value &&
+             document.getElementById('c-acepto').checked &&
+             firmaContenido;
+  document.getElementById('btn-generar-pdf').disabled = !ok;
+  document.getElementById('btn-whatsapp').disabled = !ok;
+}
+
+['c-nombre','c-fecha','c-kayaks','c-personas','c-hora','c-responsable','c-telf','c-nif','c-email'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', checkForm);
+});
+document.getElementById('c-acepto').addEventListener('change', checkForm);
+
+// ── GENERAR PDF ──────────────────────────────────────────────────────────────
+function generarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const nombre    = document.getElementById('c-nombre').value;
+  const personas  = document.getElementById('c-personas').value;
+  const kayaks    = document.getElementById('c-kayaks').value;
+  const fecha     = document.getElementById('c-fecha').value;
+  const hora      = document.getElementById('c-hora').value;
+  const resp      = document.getElementById('c-responsable').value;
+  const telf      = document.getElementById('c-telf').value;
+  const email     = document.getElementById('c-email').value;
+  const nif       = document.getElementById('c-nif').value;
+
+  const margin = 20;
+  let y = 20;
+
+  // Título
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Solicitud de Reserva de Kayak', 105, y, {align: 'center'});
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120);
+  doc.text('Club Náutico de Águilas · Puerto Deportivo', 105, y, {align: 'center'});
+  doc.setTextColor(0);
+  y += 10;
+
+  // Línea
+  doc.setDrawColor(200);
+  doc.line(margin, y, 210 - margin, y);
+  y += 8;
+
+  // Datos
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DATOS DE LA RESERVA', margin, y);
+  y += 7;
+
+  doc.setFont('helvetica', 'normal');
+  const datos = [
+    ['Nº de personas:', personas || '—', 'Nº de kayaks:', kayaks || '—'],
+    ['Día de reserva:', fecha || '—', 'Hora de regreso:', hora || '—'],
+    ['Responsable:', resp || '—', '', ''],
+  ];
+  datos.forEach(row => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(row[0], margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(row[1], margin + 35, y);
+    if (row[2]) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(row[2], 115, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(row[3], 150, y);
+    }
+    y += 7;
+  });
+
+  y += 3;
+  doc.setFont('helvetica', 'bold');
+  doc.text('DATOS DEL CLIENTE', margin, y);
+  y += 7;
+
+  doc.setFont('helvetica', 'normal');
+  const cliente = [
+    ['Nombre:', nombre],
+    ['Teléfono:', telf || '—'],
+    ['Email:', email || '—'],
+    ['NIF / Pasaporte:', nif || '—'],
+  ];
+  cliente.forEach(row => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(row[0], margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(row[1], margin + 40, y);
+    y += 7;
+  });
+
+  y += 3;
+  doc.line(margin, y, 210 - margin, y);
+  y += 8;
+
+  // Condiciones
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('CONDICIONES GENERALES', margin, y);
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  const condiciones = [
+    '1. El uso del kayak, en ningún caso será deportivo ni competitivo.',
+    '2. Los kayaks son de 2 plazas.',
+    '3. Es de obligado cumplimiento el saber nadar y el uso del chaleco mientras se esté haciendo uso del Kayak.',
+    '4. La forma de pago será en efectivo y por el total del servicio contratado.',
+    '5. Quien realice la reserva ha de ser mayor de 18 años y se hará responsable del equipo cedido. Deberá aportar DNI o Pasaporte.',
+    '6. El Usuario devolverá el kayak en buenas condiciones. Será responsable de los daños ocasionados por el mal uso.',
+    '7. No se permite el uso del kayak a personas bajo los efectos del alcohol, narcóticos u otros.',
+    '8. El Usuario se compromete a pagar multas y gastos derivados del uso indebido del objeto alquilado.',
+    '9. El importe total del alquiler será de 20 euros/kayak. Incluye kayak, 2 palas y 2 chalecos salvavidas.',
+    '10. En caso de contratación previa, se realizará una reserva del 50%, no reembolsable si se anula con menos de 48h.',
+    '11. El Club se reserva el derecho de suspender la actividad por incumplimiento de estas normas.',
+    '12. El Club no se responsabiliza de pérdidas o daños en objetos transportados en el Kayak.',
+    '13. El Usuario declara haber leído y aceptado las anteriores condiciones.',
+    '14. En caso de divergencia, las partes se someterán a la jurisdicción de los Tribunales pertinentes.',
+  ];
+  condiciones.forEach(c => {
+    const lines = doc.splitTextToSize(c, 170);
+    doc.text(lines, margin, y);
+    y += lines.length * 4.5;
+  });
+
+  y += 5;
+  doc.line(margin, y, 210 - margin, y);
+  y += 8;
+
+  // Firma
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('FIRMA DEL CLIENTE', margin, y);
+  y += 5;
+
+  const canvas = document.getElementById('firma-canvas');
+  const firmaData = canvas.toDataURL('image/png');
+  doc.addImage(firmaData, 'PNG', margin, y, 80, 35);
+  y += 40;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text(`Documento generado el ${new Date().toLocaleDateString('es-ES')} · Club Náutico Águilas`, 105, y, {align: 'center'});
+
+  return doc;
+}
+
+document.getElementById('btn-generar-pdf').addEventListener('click', () => {
+  const doc = generarPDF();
+  const nombre = document.getElementById('c-nombre').value.replace(/\s+/g, '_');
+  const fecha = document.getElementById('c-fecha').value;
+  doc.save(`Reserva_Kayak_${nombre}_${fecha}.pdf`);
+});
+
+document.getElementById('btn-whatsapp').addEventListener('click', async () => {
+  const doc = generarPDF();
+  const nombre = document.getElementById('c-nombre').value.replace(/\s+/g, '_');
+  const fecha = document.getElementById('c-fecha').value;
+  const blob = doc.output('blob');
+  const file = new File([blob], `Reserva_Kayak_${nombre}_${fecha}.pdf`, {type: 'application/pdf'});
+
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    await navigator.share({
+      title: 'Reserva de Kayak · CNA',
+      text: `Contrato de reserva de kayak - ${nombre}`,
+      files: [file]
+    });
+  } else {
+    // Fallback: descarga + abre WhatsApp web
+    doc.save(`Reserva_Kayak_${nombre}_${fecha}.pdf`);
+    const telf = document.getElementById('c-telf').value.replace(/\s/g,'');
+    if (telf) {
+      window.open(`https://wa.me/${telf.startsWith('+') ? telf.slice(1) : '34' + telf}?text=Hola, te adjunto el contrato de reserva de kayak del Club Náutico de Águilas.`);
+    }
+  }
+});
+</script>
+
 </body>
 </html>
