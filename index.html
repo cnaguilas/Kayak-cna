@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kayak · Club Náutico Águilas</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kayak CNA">
+<meta name="theme-color" content="#0a3d5c">
+<link rel="icon" type="image/png" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 
 <!-- Firebase -->
@@ -309,6 +316,22 @@
     text-transform: uppercase;
     font-family: 'DM Sans', sans-serif;
   }
+  #btn-install {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 100px;
+    padding: 7px 14px;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  #btn-install:hover { background: rgba(255,255,255,0.25); }
+
   .kayak-count {
     margin-left: auto;
     background: rgba(255,255,255,0.12);
@@ -675,6 +698,7 @@
     🛶 Kayak
     <span>Club Náutico Águilas</span>
   </div>
+  <button id="btn-install" style="display:none;">⬇️ Instalar</button>
   <div class="kayak-count"><strong>10</strong> kayaks</div>
 </header>
 
@@ -755,5 +779,34 @@
   </div>
 </div>
 
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+// PWA Install button
+let deferredPrompt;
+const btnInstall = document.getElementById('btn-install');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  btnInstall.style.display = 'block';
+});
+
+btnInstall.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') btnInstall.style.display = 'none';
+  deferredPrompt = null;
+});
+
+window.addEventListener('appinstalled', () => {
+  btnInstall.style.display = 'none';
+  deferredPrompt = null;
+});
+</script>
 </body>
 </html>
