@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kayak · Club Náutico Águilas</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, push, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── CONFIGURA AQUÍ TU FIREBASE ──────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfH47bb3fCvf4YN53kXjOZ6_J72ER7DH0",
+    authDomain: "kayak-cna.firebaseapp.com",
+    databaseURL: "https://kayak-cna-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "kayak-cna",
+    storageBucket: "kayak-cna.firebasestorage.app",
+    messagingSenderId: "536700163516",
+    appId: "1:536700163516:web:a7dd9dd72dd1a62c96c7b9"
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const TOTAL_KAYAKS = 10;
+
+  // State
+  let allBookings = {};       // { dateKey: { id: booking } }
+  let currentYear, currentMonth;
+  let selectedDate = null;
+
+  // ── INIT ────────────────────────────────────────────────────────────────────
+  function init() {
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+
+    bindNav();
+    bindModal();
+    bindForm();
+    listenBookings();
+  }
+
+  // ── FIREBASE LISTENER ───────────────────────────────────────────────────────
+  function listenBookings() {
+    const bookingsRef = ref(db, 'kayak_bookings');
+    onValue(bookingsRef, (snapshot) => {
+      allBookings = snapshot.val() || {};
+      renderCalendar();
+      if (selectedDate) refreshDayModal(selectedDate);
+    });
+  }
+
+  // ── CALENDAR ────────────────────────────────────────────────────────────────
+  function renderCalendar() {
+    const title = document.getElementById('cal-title');
+    const grid = document.getElementById('cal-grid');
+
+    const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    title.textContent = `${months[currentMonth]} ${currentYear}`;
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const offset = (firstDay + 6) % 7; // week starts Monday
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const today = new Date();
+
+    grid.innerHTML = '';
+
+    // Empty cells
+    for (let i = 0; i < offset; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'cal-cell empty';
+      grid.appendChild(blank);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = toKey(currentYear, currentMonth + 1, d);
+      const dayBookings = allBookings[dateKey] || {};
+      const occupied = countOccupied(dayBookings);
+      const available = TOTAL_KAYAKS - occupied;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+
+      const isToday = today.getFullYear() === currentYear &&
+                      today.getMonth() === currentMonth &&
+                      today.getDate() === d;
+      if (isToday) cell.classList.add('today');
+
+      // Urgency colour
+      if (occupied >= TOTAL_KAYAKS) cell.classList.add('full');
+      else if (occupied >= 7) cell.classList.add('busy');
+      else if (occupied >= 4) cell.classList.add('moderate');
+      else if (occupied > 0) cell.classList.add('light');
+
+      const entries = Object.values(dayBookings);
+      const hasEscuela = entries.some(b => b.type === 'escuela');
+
+      cell.innerHTML = `
+        <span class="day-num">${d}</span>
+        ${occupied > 0 ? `<span class="kayak-badge">${occupied}/${TOTAL_KAYAKS}</span>` : ''}
+        ${hasEscuela ? '<span class="escuela-dot" title="Escuela de Vela">⛵</span>' : ''}
+        ${occupied > 0 ? `<span class="avail-label">${available} libre${available !== 1 ? 's' : ''}</span>` : ''}
+      `;
+
+      cell.addEventListener('click', () => openDayModal(dateKey, d));
+      grid.appendChild(cell);
+    }
+  }
+
+  function bindNav() {
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendar();
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendar();
+    });
+  }
+
+  // ── DAY MODAL ───────────────────────────────────────────────────────────────
+  function openDayModal(dateKey, dayNum) {
+    selectedDate = dateKey;
+    const modal = document.getElementById('day-modal');
+    const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    document.getElementById('modal-date-title').textContent =
+      `${dayNum} de ${months[currentMonth]} de ${currentYear}`;
+
+    // Pre-fill date in add form
+    document.getElementById('form-date').value = dateKey;
+
+    refreshDayModal(dateKey);
+    modal.classList.add('open');
+  }
+
+  function refreshDayModal(dateKey) {
+    const dayBookings = allBookings[dateKey] || {};
+    const occupied = countOccupied(dayBookings);
+    const available = TOTAL_KAYAKS - occupied;
+    const list = document.getElementById('booking-list');
+
+    document.getElementById('modal-summary').innerHTML =
+      `<span class="${occupied >= TOTAL_KAYAKS ? 'text-red' : occupied >= 7 ? 'text-orange' : 'text-green'}">
+        ${occupied} ocupados
+      </span> · ${available} disponibles de ${TOTAL_KAYAKS}`;
+
+    if (Object.keys(dayBookings).length === 0) {
+      list.innerHTML = '<p class="empty-msg">Sin reservas este día.</p>';
+      return;
+    }
+
+    list.innerHTML = Object.entries(dayBookings).map(([id, b]) => `
+      <div class="booking-item ${b.type}">
+        <div class="booking-icon">${b.type === 'escuela' ? '⛵' : '🚣'}</div>
+        <div class="booking-info">
+          <strong>${b.type === 'escuela' ? 'Escuela de Vela' : b.name}</strong>
+          <span>${b.kayaks} kayak${b.kayaks !== 1 ? 's' : ''}</span>
+          ${b.notes ? `<em>${b.notes}</em>` : ''}
+        </div>
+        <button class="btn-delete" data-id="${id}" data-date="${dateKey}" title="Eliminar">✕</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        const date = e.currentTarget.dataset.date;
+        if (confirm('¿Eliminar esta reserva?')) {
+          await remove(ref(db, `kayak_bookings/${date}/${id}`));
+        }
+      });
+    });
+  }
+
+  function bindModal() {
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('day-modal').classList.remove('open');
+      selectedDate = null;
+      resetForm();
+    });
+    document.getElementById('day-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('open');
+        selectedDate = null;
+        resetForm();
+      }
+    });
+
+    // Toggle form fields based on type
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const isPersonal = document.querySelector('input[name="type"]:checked').value === 'personal';
+        document.getElementById('field-name').style.display = isPersonal ? 'block' : 'none';
+      });
+    });
+  }
+
+  // ── FORM ────────────────────────────────────────────────────────────────────
+  function bindForm() {
+    document.getElementById('booking-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dateKey = document.getElementById('form-date').value;
+      const type = document.querySelector('input[name="type"]:checked').value;
+      const kayaks = parseInt(document.getElementById('form-kayaks').value);
+      const name = document.getElementById('form-name').value.trim();
+      const notes = document.getElementById('form-notes').value.trim();
+
+      if (!dateKey || isNaN(kayaks) || kayaks < 1) return;
+
+      const dayBookings = allBookings[dateKey] || {};
+      const occupied = countOccupied(dayBookings);
+      if (occupied + kayaks > TOTAL_KAYAKS) {
+        alert(`Solo quedan ${TOTAL_KAYAKS - occupied} kayaks disponibles.`);
+        return;
+      }
+
+      const booking = { type, kayaks, notes, ts: Date.now() };
+      if (type === 'personal') {
+        if (!name) { alert('Introduce un nombre.'); return; }
+        booking.name = name;
+      }
+
+      const btn = document.getElementById('form-submit');
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+
+      await push(ref(db, `kayak_bookings/${dateKey}`), booking);
+
+      btn.disabled = false;
+      btn.textContent = 'Añadir reserva';
+      resetForm();
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('booking-form').reset();
+    document.getElementById('field-name').style.display = 'none';
+    document.getElementById('form-date').value = selectedDate || '';
+  }
+
+  // ── HELPERS ─────────────────────────────────────────────────────────────────
+  function toKey(y, m, d) {
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function countOccupied(dayBookings) {
+    return Object.values(dayBookings).reduce((s, b) => s + (b.kayaks || 0), 0);
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ocean: #0a3d5c;
+    --wave: #0e6b8f;
+    --foam: #e8f4f8;
+    --sand: #f5ede0;
+    --coral: #e05c3a;
+    --kelp: #2a8c5a;
+    --sky: #5bb8d4;
+    --ink: #0d1f2d;
+    --mist: #b8d4df;
+    --white: #fafcfd;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ocean);
+    min-height: 100vh;
+    color: var(--ink);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, #0e6b8f55, transparent),
+      radial-gradient(ellipse 60% 40% at 80% 110%, #0a2d4488, transparent);
+  }
+
+  /* HEADER */
+  header {
+    padding: 24px 32px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--white);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo span {
+    color: var(--sky);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .kayak-count {
+    margin-left: auto;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 100px;
+    padding: 8px 20px;
+    color: var(--white);
+    font-size: 0.85rem;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+  }
+  .kayak-count strong { color: var(--sky); font-family: 'Syne', sans-serif; font-size: 1.1rem; }
+
+  /* MAIN CARD */
+  .card {
+    background: var(--white);
+    border-radius: 24px 24px 0 0;
+    margin: 0 12px;
+    min-height: calc(100vh - 110px);
+    padding: 28px 24px 40px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+  }
+
+  /* CALENDAR NAV */
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .cal-nav h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--ocean);
+    text-transform: capitalize;
+  }
+  .btn-nav {
+    background: var(--foam);
+    border: none;
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--ocean);
+    transition: background 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-nav:hover { background: var(--mist); }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 20px;
+    font-size: 0.75rem;
+    color: #666;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .ld-light { background: #d4ecd4; }
+  .ld-moderate { background: #fef3c7; }
+  .ld-busy { background: #fed7aa; }
+  .ld-full { background: #fee2e2; }
+
+  /* DAY HEADERS */
+  .cal-headers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .cal-header {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--wave);
+    padding: 4px 0;
+  }
+
+  /* GRID */
+  #cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .cal-cell {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    padding: 6px;
+    position: relative;
+    cursor: pointer;
+    background: var(--foam);
+    border: 1.5px solid transparent;
+    transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+  }
+  .cal-cell.empty { background: transparent; cursor: default; border: none; }
+  .cal-cell:not(.empty):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(14,107,143,0.2);
+    border-color: var(--sky);
+  }
+  .cal-cell.today { border-color: var(--wave) !important; }
+  .cal-cell.today .day-num { color: var(--wave); font-weight: 800; }
+
+  .cal-cell.light { background: #e8f5e9; }
+  .cal-cell.moderate { background: #fef9e7; }
+  .cal-cell.busy { background: #fff3e0; }
+  .cal-cell.full { background: #fde8e8; }
+
+  .day-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .kayak-badge {
+    font-size: 0.62rem;
+    font-weight: 600;
+    background: rgba(14,107,143,0.15);
+    color: var(--wave);
+    border-radius: 100px;
+    padding: 1px 5px;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+  .cal-cell.full .kayak-badge { background: #fee2e2; color: #c0392b; }
+  .cal-cell.busy .kayak-badge { background: #fed7aa; color: #d97706; }
+
+  .escuela-dot {
+    position: absolute;
+    top: 4px; right: 4px;
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+  .avail-label {
+    font-size: 0.55rem;
+    color: #888;
+    margin-top: auto;
+    white-space: nowrap;
+  }
+
+  /* MODAL OVERLAY */
+  #day-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,30,50,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  #day-modal.open { display: flex; animation: fadeIn 0.2s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal-sheet {
+    background: var(--white);
+    border-radius: 24px 24px 0 0;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 0 0 40px;
+    animation: slideUp 0.25s cubic-bezier(0.22,1,0.36,1);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-handle {
+    width: 40px; height: 4px;
+    background: var(--mist);
+    border-radius: 2px;
+    margin: 12px auto 0;
+  }
+
+  .modal-header {
+    padding: 16px 24px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--foam);
+  }
+  .modal-header h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--ocean);
+    text-transform: capitalize;
+  }
+  #modal-summary {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 2px;
+  }
+  .text-green { color: var(--kelp); font-weight: 600; }
+  .text-orange { color: #d97706; font-weight: 600; }
+  .text-red { color: var(--coral); font-weight: 600; }
+
+  #modal-close {
+    background: var(--foam);
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--ocean);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* BOOKING LIST */
+  #booking-list {
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .empty-msg { color: #aaa; font-size: 0.85rem; text-align: center; padding: 12px 0; }
+
+  .booking-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--foam);
+    border-left: 4px solid var(--sky);
+    position: relative;
+  }
+  .booking-item.escuela { border-left-color: var(--coral); background: #fff5f2; }
+  .booking-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .booking-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .booking-info strong { font-size: 0.9rem; color: var(--ink); }
+  .booking-info span { font-size: 0.8rem; color: var(--wave); font-weight: 500; }
+  .booking-info em { font-size: 0.75rem; color: #888; font-style: normal; }
+  .btn-delete {
+    background: none;
+    border: 1px solid var(--mist);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    cursor: pointer;
+    color: #aaa;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s, color 0.1s;
+  }
+  .btn-delete:hover { background: #fee2e2; color: var(--coral); border-color: var(--coral); }
+
+  /* ADD FORM */
+  .form-section {
+    margin: 0 24px;
+    padding: 16px;
+    background: var(--foam);
+    border-radius: 16px;
+    border: 1.5px dashed var(--mist);
+  }
+  .form-section h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--ocean);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .type-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .type-toggle label {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1.5px solid var(--mist);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #666;
+  }
+  .type-toggle input { display: none; }
+  .type-toggle input:checked + label {
+    background: var(--ocean);
+    color: var(--white);
+    border-color: var(--ocean);
+  }
+
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .form-row:last-child { margin-bottom: 0; }
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .form-group label { font-size: 0.72rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select, .form-group textarea {
+    border: 1.5px solid var(--mist);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--wave);
+  }
+  .form-group textarea { resize: none; height: 56px; }
+
+  #form-submit {
+    width: 100%;
+    margin-top: 12px;
+    background: var(--ocean);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  #form-submit:hover { background: var(--wave); }
+  #form-submit:active { transform: scale(0.98); }
+  #form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @media (max-width: 400px) {
+    .card { padding: 20px 16px 40px; margin: 0 6px; }
+    .cal-cell { border-radius: 8px; padding: 4px; }
+    .day-num { font-size: 0.78rem; }
+    .kayak-badge { font-size: 0.55rem; }
+    .avail-label { display: none; }
+    header { padding: 16px 20px 12px; }
+    .logo { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    🛶 Kayak
+    <span>Club Náutico Águilas</span>
+  </div>
+  <div class="kayak-count"><strong>10</strong> kayaks</div>
+</header>
+
+<div class="card">
+  <nav class="cal-nav">
+    <button class="btn-nav" id="btn-prev">‹</button>
+    <h2 id="cal-title"></h2>
+    <button class="btn-nav" id="btn-next">›</button>
+  </nav>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot ld-light"></div> 1–3 ocupados</div>
+    <div class="legend-item"><div class="legend-dot ld-moderate"></div> 4–6 ocupados</div>
+    <div class="legend-item"><div class="legend-dot ld-busy"></div> 7–9 ocupados</div>
+    <div class="legend-item"><div class="legend-dot ld-full"></div> Completo</div>
+    <div class="legend-item">⛵ Escuela de Vela</div>
+  </div>
+
+  <div class="cal-headers">
+    <div class="cal-header">Lu</div>
+    <div class="cal-header">Ma</div>
+    <div class="cal-header">Mi</div>
+    <div class="cal-header">Ju</div>
+    <div class="cal-header">Vi</div>
+    <div class="cal-header">Sá</div>
+    <div class="cal-header">Do</div>
+  </div>
+  <div id="cal-grid"></div>
+</div>
+
+<!-- DAY MODAL -->
+<div id="day-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <h3 id="modal-date-title"></h3>
+        <div id="modal-summary"></div>
+      </div>
+      <button id="modal-close">✕</button>
+    </div>
+
+    <div id="booking-list"></div>
+
+    <div class="form-section" style="margin-top:8px;">
+      <h4>+ Añadir reserva</h4>
+      <form id="booking-form">
+        <input type="hidden" id="form-date">
+
+        <div class="type-toggle">
+          <input type="radio" name="type" id="type-escuela" value="escuela" checked>
+          <label for="type-escuela">⛵ Escuela de Vela</label>
+          <input type="radio" name="type" id="type-personal" value="personal">
+          <label for="type-personal">🚣 Reserva personal</label>
+        </div>
+
+        <div class="form-row" id="field-name" style="display:none;">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="form-name" placeholder="Nombre del cliente">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nº Kayaks</label>
+            <input type="number" id="form-kayaks" min="1" max="10" value="1" required>
+          </div>
+          <div class="form-group">
+            <label>Notas (opcional)</label>
+            <input type="text" id="form-notes" placeholder="Ej: mañana, tarde…">
+          </div>
+        </div>
+
+        <button type="submit" id="form-submit">Añadir reserva</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
