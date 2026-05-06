@@ -2,7 +2,7 @@
   "name": "Kayak · Club Náutico Águilas",
   "short_name": "Kayak CNA",
   "description": "Gestión de alquiler de kayak",
-  "start_url": "/",
+  "start_url": "/Kayak/",
   "display": "standalone",
   "background_color": "#0a3d5c",
   "theme_color": "#0a3d5c",
