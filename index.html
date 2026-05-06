@@ -109,11 +109,23 @@
       const entries = Object.values(dayBookings);
       const hasEscuela = entries.some(b => b.type === 'escuela');
 
+      // Build time slots summary for cell
+      const timedEntries = entries.filter(b => !b.allDay);
+      const allDayEntries = entries.filter(b => b.allDay);
+      let slotsHtml = '';
+      if (allDayEntries.length > 0) {
+        const k = allDayEntries.reduce((s,b) => s+(b.kayaks||0), 0);
+        slotsHtml += `<span class="slot-bar all-day">${k}🛶</span>`;
+      }
+      timedEntries.slice(0,2).forEach(b => {
+        slotsHtml += `<span class="slot-bar timed">${b.desde?.slice(0,5)}·${b.kayaks}🛶</span>`;
+      });
+      if (timedEntries.length > 2) slotsHtml += `<span class="slot-bar more">+${timedEntries.length-2}</span>`;
+
       cell.innerHTML = `
         <span class="day-num">${d}</span>
-        ${occupied > 0 ? `<span class="kayak-badge">${occupied}/${TOTAL_KAYAKS}</span>` : ''}
-        ${hasEscuela ? '<span class="escuela-dot" title="Escuela de Vela">⛵</span>' : ''}
-        ${occupied > 0 ? `<span class="avail-label">${available} libre${available !== 1 ? 's' : ''}</span>` : ''}
+        ${hasEscuela ? '<span class="escuela-dot">⛵</span>' : ''}
+        ${slotsHtml}
       `;
 
       cell.addEventListener('click', () => openDayModal(dateKey, d));
@@ -166,17 +178,28 @@
       return;
     }
 
-    list.innerHTML = Object.entries(dayBookings).map(([id, b]) => `
+    // Agrupar por franja para mostrar línea de tiempo
+    const allEntries = Object.entries(dayBookings);
+    // Ordenar: todo el día primero, luego por hora inicio
+    allEntries.sort((a, b) => {
+      if (a[1].allDay && !b[1].allDay) return -1;
+      if (!a[1].allDay && b[1].allDay) return 1;
+      return (a[1].desde || '').localeCompare(b[1].desde || '');
+    });
+
+    list.innerHTML = allEntries.map(([id, b]) => {
+      const franja = b.allDay ? 'Todo el día' : `${b.desde} – ${b.hasta}`;
+      return `
       <div class="booking-item ${b.type}">
         <div class="booking-icon">${b.type === 'escuela' ? '⛵' : '🚣'}</div>
         <div class="booking-info">
           <strong>${b.type === 'escuela' ? 'Escuela de Vela' : b.name}</strong>
-          <span>${b.kayaks} kayak${b.kayaks !== 1 ? 's' : ''}</span>
+          <span>${b.kayaks} kayak${b.kayaks !== 1 ? 's' : ''} · <em style="font-style:normal;color:#0e6b8f;">${franja}</em></span>
           ${b.notes ? `<em>${b.notes}</em>` : ''}
         </div>
         <button class="btn-delete" data-id="${id}" data-date="${dateKey}" title="Eliminar">✕</button>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
     list.querySelectorAll('.btn-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -210,6 +233,11 @@
         document.getElementById('field-name').style.display = isPersonal ? 'block' : 'none';
       });
     });
+
+    // Toggle horario fields
+    document.getElementById('form-allday').addEventListener('change', function() {
+      document.getElementById('field-horario').style.display = this.checked ? 'none' : 'flex';
+    });
   }
 
   // ── FORM ────────────────────────────────────────────────────────────────────
@@ -222,16 +250,25 @@
       const name = document.getElementById('form-name').value.trim();
       const notes = document.getElementById('form-notes').value.trim();
 
-      if (!dateKey || isNaN(kayaks) || kayaks < 1) return;
+      const allDayCheck = document.getElementById('form-allday').checked;
+      const desde = document.getElementById('form-desde').value;
+      const hasta = document.getElementById('form-hasta').value;
 
-      const dayBookings = allBookings[dateKey] || {};
-      const occupied = countOccupied(dayBookings);
-      if (occupied + kayaks > TOTAL_KAYAKS) {
-        alert(`Solo quedan ${TOTAL_KAYAKS - occupied} kayaks disponibles.`);
+      if (!dateKey || isNaN(kayaks) || kayaks < 1) return;
+      if (!allDayCheck && (!desde || !hasta || desde >= hasta)) {
+        alert('Introduce una franja horaria válida (inicio antes que fin).');
         return;
       }
 
-      const booking = { type, kayaks, notes, ts: Date.now() };
+      const dayBookings = allBookings[dateKey] || {};
+      const libres = kayaksLibresEnFranja(dayBookings, desde, hasta, allDayCheck);
+      if (kayaks > libres) {
+        alert(`Solo quedan ${libres} kayaks disponibles en esa franja.`);
+        return;
+      }
+
+      const booking = { type, kayaks, notes, ts: Date.now(), allDay: allDayCheck };
+      if (!allDayCheck) { booking.desde = desde; booking.hasta = hasta; }
       if (type === 'personal') {
         if (!name) { alert('Introduce un nombre.'); return; }
         booking.name = name;
@@ -253,6 +290,8 @@
     document.getElementById('booking-form').reset();
     document.getElementById('field-name').style.display = 'none';
     document.getElementById('form-date').value = selectedDate || '';
+    document.getElementById('field-horario').style.display = 'none';
+    document.getElementById('form-allday').checked = true;
   }
 
   // ── HELPERS ─────────────────────────────────────────────────────────────────
@@ -260,8 +299,36 @@
     return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
 
+  // Max kayaks ocupados simultáneamente en cualquier momento del día
   function countOccupied(dayBookings) {
-    return Object.values(dayBookings).reduce((s, b) => s + (b.kayaks || 0), 0);
+    const entries = Object.values(dayBookings);
+    if (entries.length === 0) return 0;
+    const allDay = entries.filter(b => b.allDay);
+    const timed  = entries.filter(b => !b.allDay);
+    const allDayKayaks = allDay.reduce((s, b) => s + (b.kayaks || 0), 0);
+    if (timed.length === 0) return allDayKayaks;
+    const points = new Set();
+    timed.forEach(b => { points.add(b.desde); points.add(b.hasta); });
+    let peak = 0;
+    points.forEach(t => {
+      const inUse = timed.filter(b => b.desde <= t && t < b.hasta)
+                         .reduce((s, b) => s + (b.kayaks || 0), 0);
+      if (inUse > peak) peak = inUse;
+    });
+    return allDayKayaks + peak;
+  }
+
+  function kayaksLibresEnFranja(dayBookings, desde, hasta, allDay) {
+    const entries = Object.values(dayBookings);
+    if (allDay) {
+      const total = entries.reduce((s, b) => s + (b.kayaks || 0), 0);
+      return TOTAL_KAYAKS - total;
+    }
+    const solapados = entries.filter(b => {
+      if (b.allDay) return true;
+      return b.desde < hasta && b.hasta > desde;
+    }).reduce((s, b) => s + (b.kayaks || 0), 0);
+    return TOTAL_KAYAKS - solapados;
   }
 
   window.addEventListener('DOMContentLoaded', init);
@@ -870,6 +937,37 @@
   .btn-compartir:hover { background: #1ebe5b; }
   .btn-compartir:disabled { opacity: 0.4; cursor: not-allowed; }
 
+
+  /* SLOT BARS in calendar cell */
+  .slot-bar {
+    display: block;
+    font-size: 0.5rem;
+    border-radius: 4px;
+    padding: 1px 3px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-weight: 600;
+  }
+  .slot-bar.all-day { background: rgba(14,107,143,0.15); color: var(--wave); }
+  .slot-bar.timed { background: rgba(42,140,90,0.15); color: var(--kelp); }
+  .slot-bar.more { background: rgba(0,0,0,0.07); color: #888; }
+  .cal-cell.full .slot-bar.all-day { background: #fee2e2; color: #c0392b; }
+
+  /* Allday checkbox */
+  .allday-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--ink);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .allday-label input { width: 16px; height: 16px; cursor: pointer; }
+
 </style>
 </head>
 <body>
@@ -1058,7 +1156,25 @@
           </div>
           <div class="form-group">
             <label>Notas (opcional)</label>
-            <input type="text" id="form-notes" placeholder="Ej: mañana, tarde…">
+            <input type="text" id="form-notes" placeholder="Notas…">
+          </div>
+        </div>
+
+        <div class="form-row" style="align-items:center;margin-bottom:8px;">
+          <label class="allday-label">
+            <input type="checkbox" id="form-allday" checked>
+            Todo el día
+          </label>
+        </div>
+
+        <div class="form-row" id="field-horario" style="display:none;">
+          <div class="form-group">
+            <label>Hora inicio</label>
+            <input type="time" id="form-desde">
+          </div>
+          <div class="form-group">
+            <label>Hora fin</label>
+            <input type="time" id="form-hasta">
           </div>
         </div>
 
